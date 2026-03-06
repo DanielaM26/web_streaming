@@ -1,0 +1,9 @@
+# Node / local
+.DS_Store
+Thumbs.db
+
+# Java / Maven
+java-client/target/
+
+# Logs
+*.log

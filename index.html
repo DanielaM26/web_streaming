@@ -1,0 +1,185 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>WebRTC Streaming MVP (Janus VideoRoom)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-0: #f5f7fb;
+      --bg-1: #ffffff;
+      --ink: #17212b;
+      --muted: #5a6b7c;
+      --line: #d8e0e7;
+      --brand: #0f766e;
+      --brand-dark: #0b5e58;
+      --accent: #f59e0b;
+      --danger: #b91c1c;
+      --shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: "Space Grotesk", sans-serif;
+      max-width: 1100px;
+      margin: 26px auto;
+      padding: 0 14px 26px;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 420px at -10% -20%, #cfeeea 0%, transparent 55%),
+        radial-gradient(1200px 420px at 110% 0%, #fdecc8 0%, transparent 50%),
+        var(--bg-0);
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: clamp(1.4rem, 2vw, 2rem);
+      letter-spacing: 0.2px;
+    }
+
+    .row { display: flex; gap: 16px; flex-wrap: wrap; }
+
+    .box {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--bg-1);
+      box-shadow: var(--shadow);
+    }
+
+    label {
+      font-size: 0.85rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    input, button {
+      font-family: inherit;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      transition: all .18s ease;
+    }
+
+    input {
+      padding: 10px 11px;
+      min-width: 160px;
+      background: #fbfdff;
+      color: var(--ink);
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #99c5c2;
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.16);
+      background: #fff;
+    }
+
+    button {
+      padding: 10px 13px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #fff;
+      border: none;
+      background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+      box-shadow: 0 8px 18px rgba(15, 118, 110, 0.28);
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.03);
+    }
+
+    button:active {
+      transform: translateY(0);
+      filter: brightness(0.98);
+    }
+
+    #btnViewer {
+      background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
+      box-shadow: 0 8px 18px rgba(3, 105, 161, 0.28);
+    }
+
+    #btnStop {
+      background: linear-gradient(135deg, #ef4444 0%, var(--danger) 100%);
+      box-shadow: 0 8px 18px rgba(185, 28, 28, 0.26);
+    }
+
+    video {
+      width: min(100%, 500px);
+      background: #0b1220;
+      border-radius: 12px;
+      border: 1px solid #1f2a39;
+    }
+
+    h3 {
+      margin: 0 0 10px;
+      font-size: 1.15rem;
+    }
+
+    #log {
+      min-height: 170px;
+      max-height: 300px;
+      overflow: auto;
+      white-space: pre-wrap;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #f8fafc, #eef3f8);
+      color: #243444;
+      font-size: 0.92rem;
+      line-height: 1.35;
+    }
+
+    @media (max-width: 760px) {
+      body { margin: 16px auto; }
+      .box { padding: 12px; }
+      video { width: 100%; }
+      input { min-width: 120px; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <h2>WebRTC Streaming MVP (Janus VideoRoom)</h2>
+
+  <div class="box">
+    <div class="row">
+      <div>
+        <label>Name</label><br/>
+        <input id="name" value="alice" />
+      </div>
+      <div>
+        <label>Room</label><br/>
+        <input id="room" value="1234" />
+      </div>
+      <div>
+        <label>Janus WS</label><br/>
+        <input id="janusWs" value="ws://localhost:8188" style="width:260px" />
+      </div>
+    </div>
+    <div style="margin-top:10px;">
+      <button id="btnPublisher">Start as Publisher (stream)</button>
+      <button id="btnViewer">Start as Viewer (watch)</button>
+      <button id="btnStop">Stop</button>
+    </div>
+  </div>
+
+  <div class="row" style="margin-top: 14px;">
+    <div class="box">
+      <h3>Local (Publisher)</h3>
+      <video id="local" autoplay playsinline muted></video>
+    </div>
+    <div class="box">
+      <h3>Remote (Viewer)</h3>
+      <video id="remote" autoplay playsinline></video>
+    </div>
+  </div>
+
+  <h3>Log</h3>
+  <div id="log"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
