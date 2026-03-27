@@ -1,0 +1,207 @@
+\documentclass[aspectratio=169]{beamer}
+
+\usetheme{Madrid}
+\usecolortheme{default}
+\setbeamertemplate{navigation symbols}{}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{booktabs}
+\usepackage{array}
+
+\definecolor{brand}{RGB}{15,118,110}
+\definecolor{branddark}{RGB}{11,94,88}
+\definecolor{accent}{RGB}{3,105,161}
+\definecolor{textgray}{RGB}{70,84,97}
+
+\setbeamercolor{structure}{fg=brand}
+\setbeamercolor{title}{fg=branddark}
+\setbeamercolor{frametitle}{fg=branddark}
+\setbeamercolor{normal text}{fg=black,bg=white}
+\setbeamercolor{block title}{fg=white,bg=brand}
+\setbeamercolor{block body}{fg=black,bg=brand!6}
+\setbeamercolor{alerted text}{fg=accent}
+
+\title{Web Streaming App}
+\subtitle{Janus VideoRoom + WebRTC Streaming MVP}
+\author{Daniela}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Presentation Goal}
+  \begin{itemize}
+    \item Present a working streaming MVP built on \textbf{WebRTC} and \textbf{Janus VideoRoom}
+    \item Show that the solution is not only functional, but also \textbf{structured, resilient, and extensible}
+    \item Explain the project in a way that is easy to follow for both technical review and project fit discussion
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{What The Application Does}
+  \begin{block}{Core Use Case}
+    A user can start the app either as a \textbf{Publisher} to stream camera and microphone, or as a \textbf{Viewer} to watch the live stream.
+  \end{block}
+
+  \vspace{0.4em}
+  \begin{itemize}
+    \item Browser client connects directly to Janus over \textbf{raw WebSocket signaling}
+    \item Publisher creates or reuses a room and pushes live media
+    \item Viewer automatically detects the active publisher feed and subscribes to it
+    \item The UI exposes status, logs, friendly errors, and recovery feedback
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Why This Project Is Valuable}
+  \begin{itemize}
+    \item Demonstrates \textbf{real-time communication} with low-latency media delivery
+    \item Uses a lightweight architecture: no heavy frontend framework, no Janus helper library
+    \item Shows understanding of both \textbf{signaling flow} and \textbf{media negotiation}
+    \item Includes practical engineering concerns:
+    \begin{itemize}
+      \item session lifecycle
+      \item room management
+      \item reconnection handling
+      \item user experience during failures
+    \end{itemize}
+    \item Adds a Java viewer skeleton, which shows the design can evolve beyond a browser-only MVP
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{High-Level Architecture}
+  \begin{center}
+    \renewcommand{\arraystretch}{1.4}
+    \begin{tabular}{>{\bfseries}m{0.24\linewidth} m{0.68\linewidth}}
+      Browser UI & Inputs, buttons, local/remote video elements, status badge, log panel \\
+      \addlinespace
+      app.js & Janus signaling, WebRTC peer connection, publisher/viewer flows, recovery logic \\
+      \addlinespace
+      Janus Server & Session management, VideoRoom plugin, signaling transport, media routing \\
+      \addlinespace
+      Java Client & Subscriber skeleton for external integrations or non-browser consumers \\
+    \end{tabular}
+  \end{center}
+
+  \vspace{0.6em}
+  \begin{block}{Design Choice}
+    The browser talks to Janus using the \textbf{janus-protocol} directly, which keeps the implementation transparent and easier to reason about during debugging.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Publisher Flow}
+  \begin{enumerate}
+    \item Open WebSocket connection to Janus
+    \item Create Janus session
+    \item Attach to \texttt{janus.plugin.videoroom}
+    \item Check whether the room exists; create it if needed
+    \item Ensure there is no active publisher already streaming
+    \item Join the room as publisher
+    \item Capture camera and microphone with \texttt{getUserMedia}
+    \item Create WebRTC offer and send \texttt{configure} request with JSEP
+    \item Receive SDP answer from Janus and start publishing
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{Viewer Flow}
+  \begin{enumerate}
+    \item Open WebSocket connection, create session, and attach to VideoRoom
+    \item Ensure the room exists
+    \item Poll room participants to detect a live publisher
+    \item Join as subscriber using the publisher \texttt{feed} and \texttt{streams} mapping
+    \item Receive JSEP offer from Janus
+    \item Create local SDP answer and send \texttt{start}
+    \item Attach the remote stream to the viewer video element
+    \item Monitor publisher changes and rejoin automatically if the feed disappears or changes
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{What Is Strong In The Implementation}
+  \begin{itemize}
+    \item \textbf{Clear state model}: idle, connecting, connected, publishing, viewer waiting, reconnecting, error
+    \item \textbf{Friendly error mapping}: device permissions, invalid room, missing feed, server availability
+    \item \textbf{Automatic recovery}: detects disconnects, resets media state, and guides the user to restart
+    \item \textbf{Viewer resiliency}: auto-join and monitor loops help keep playback aligned with the live publisher
+    \item \textbf{Good MVP boundaries}: small codebase, readable flow, focused responsibilities
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Java Client Extension}
+  \begin{block}{Why It Matters}
+    The project is not limited to a browser demo. It already includes a Java subscriber skeleton, which is important for backend tooling, monitoring, kiosk playback, or future service integrations.
+  \end{block}
+
+  \vspace{0.4em}
+  \begin{itemize}
+    \item Mirrors the Janus lifecycle: create session, attach plugin, keepalive, subscribe, start, trickle ICE
+    \item Uses a dedicated WebRTC engine abstraction
+    \item Waits for Janus asynchronous offer events and responds with a local SDP answer
+    \item Shows that the signaling model is reusable across platforms
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Key Technical Decisions}
+  \begin{itemize}
+    \item \textbf{Raw Janus WebSocket API instead of janus.js}
+    \begin{itemize}
+      \item better protocol visibility
+      \item easier to explain exact signaling steps
+      \item less hidden behavior
+    \end{itemize}
+    \item \textbf{Single active publisher per room}
+    \begin{itemize}
+      \item simplifies the MVP
+      \item avoids ambiguous viewer selection
+    \end{itemize}
+    \item \textbf{Auto room creation}
+    \begin{itemize}
+      \item lowers setup friction in development
+      \item makes the demo smoother
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Current Limitations}
+  \begin{itemize}
+    \item TURN/STUN configuration is intentionally minimal and suited mainly for local or controlled environments
+    \item Security and authentication are not the focus of this MVP
+    \item The viewer currently selects the first live publisher, which is enough for a single-publisher room but not for multi-stream discovery
+    \item The frontend is plain JavaScript, which is great for clarity, but would need stronger modularization as the project grows
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{How I Would Evolve It}
+  \begin{itemize}
+    \item Add authentication and room-level access control
+    \item Externalize configuration for Janus endpoints, ICE servers, and room policies
+    \item Improve observability with structured logs and metrics
+    \item Support multiple publishers and explicit viewer selection
+    \item Add automated tests around signaling state transitions and error scenarios
+    \item Package the Java client as a reusable integration module
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Why This Fits A Real Project}
+  \begin{itemize}
+    \item The MVP already covers the hard part: \textbf{real-time media + signaling orchestration}
+    \item The code shows practical thinking, not only a demo mindset
+    \item It is understandable, extendable, and close to production concerns
+    \item It creates a solid base for features such as remote support, live monitoring, streaming dashboards, or communication platforms
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Closing}
+  \begin{block}{Takeaway}
+    This project demonstrates the ability to build a clean real-time streaming flow end to end: UI, signaling, WebRTC negotiation, recovery behavior, and extension into Java.
+  \end{block}
+
+  \vspace{0.5em}
+  \begin{center}
+    \Large Questions
+  \end{center}
+\end{frame}
+
+\end{document}

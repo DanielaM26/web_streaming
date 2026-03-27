@@ -32,6 +32,7 @@
         radial-gradient(1200px 420px at -10% -20%, #cfeeea 0%, transparent 55%),
         radial-gradient(1200px 420px at 110% 0%, #fdecc8 0%, transparent 50%),
         var(--bg-0);
+      transition: background .25s ease;
     }
 
     h2 {
@@ -107,6 +108,60 @@
       box-shadow: 0 8px 18px rgba(185, 28, 28, 0.26);
     }
 
+    button:disabled {
+      cursor: not-allowed;
+      filter: grayscale(0.15);
+      opacity: 0.62;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 10px;
+    }
+
+    .status-label {
+      font-size: 0.85rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    #statusBadge {
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      border: 1px solid transparent;
+      line-height: 1;
+    }
+
+    #statusBadge[data-status="idle"] { background: #e2e8f0; color: #334155; border-color: #cbd5e1; }
+    #statusBadge[data-status="connecting"] { background: #dbeafe; color: #1d4ed8; border-color: #93c5fd; }
+    #statusBadge[data-status="connected"] { background: #dcfce7; color: #166534; border-color: #86efac; }
+    #statusBadge[data-status="publishing"] { background: #cffafe; color: #155e75; border-color: #67e8f9; }
+    #statusBadge[data-status="viewer_waiting"] { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+    #statusBadge[data-status="reconnecting"] { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+    #statusBadge[data-status="error"] { background: #fecaca; color: #7f1d1d; border-color: #f87171; }
+
+    #userMessage {
+      margin-top: 10px;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 0.9rem;
+      line-height: 1.35;
+      display: none;
+    }
+
+    #userMessage.show {
+      display: block;
+      border: 1px solid #fca5a5;
+      background: #fef2f2;
+      color: #991b1b;
+    }
+
     video {
       width: min(100%, 500px);
       background: #0b1220;
@@ -143,8 +198,13 @@
 </head>
 <body>
   <h2>WebRTC Streaming MVP (Janus VideoRoom)</h2>
+  <div style="font-size:12px;color:#64748b;margin:-6px 0 10px;">UI version: ux-status-v2</div>
 
   <div class="box">
+    <div class="status-row">
+      <span class="status-label">Status</span>
+      <span id="statusBadge" data-status="idle">Idle</span>
+    </div>
     <div class="row">
       <div>
         <label>Name</label><br/>
@@ -164,6 +224,7 @@
       <button id="btnViewer">Start as Viewer (watch)</button>
       <button id="btnStop">Stop</button>
     </div>
+    <div id="userMessage"></div>
   </div>
 
   <div class="row" style="margin-top: 14px;">
@@ -180,6 +241,6 @@
   <h3>Log</h3>
   <div id="log"></div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=ux-status-v2"></script>
 </body>
 </html>

@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  web-checks:
+    name: Web checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Verify web entry files exist
+        run: |
+          test -f index.html
+          test -f app.js
+
+      - name: Check JavaScript syntax
+        run: node --check app.js
+
+  java-client-build:
+    name: Java client build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+
+      - name: Build Maven project
+        working-directory: java-client
+        run: mvn -B -DskipTests package

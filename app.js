@@ -18,13 +18,132 @@ let viewerPollTimer = null;
 let viewerJoinSent = false;
 let viewerMonitorTimer = null;
 let currentViewerFeedId = null;
+let appStatus = "idle";
+let reconnectBadgeTimer = null;
+let stopRequested = false;
+let startInProgress = false;
 
 const logEl = document.getElementById("log");
+const statusBadgeEl = document.getElementById("statusBadge");
+const userMessageEl = document.getElementById("userMessage");
+const nameEl = document.getElementById("name");
+const roomEl = document.getElementById("room");
+const janusWsEl = document.getElementById("janusWs");
+const btnPublisherEl = document.getElementById("btnPublisher");
+const btnViewerEl = document.getElementById("btnViewer");
+const btnStopEl = document.getElementById("btnStop");
+const STATUS_LABELS = {
+  idle: "Idle",
+  connecting: "Connecting",
+  connected: "Connected",
+  publishing: "Publishing",
+  viewer_waiting: "Viewer waiting",
+  reconnecting: "Reconnecting",
+  error: "Error",
+};
+
 function log(...args) {
   const line = args.map(a => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");
   console.log(line);
   logEl.textContent += line + "\n";
   logEl.scrollTop = logEl.scrollHeight;
+}
+
+function setStatus(status, labelOverride) {
+  appStatus = status;
+  statusBadgeEl.dataset.status = status;
+  statusBadgeEl.textContent = labelOverride || STATUS_LABELS[status] || status;
+  updateControls();
+}
+
+function showUserMessage(message) {
+  userMessageEl.textContent = message;
+  userMessageEl.classList.add("show");
+}
+
+function clearUserMessage() {
+  userMessageEl.textContent = "";
+  userMessageEl.classList.remove("show");
+}
+
+function updateControls() {
+  const active = role !== null || startInProgress || appStatus === "connecting" || appStatus === "reconnecting";
+  btnPublisherEl.disabled = active;
+  btnViewerEl.disabled = active;
+  btnStopEl.disabled = !active;
+  nameEl.disabled = active;
+  roomEl.disabled = active;
+  janusWsEl.disabled = active;
+}
+
+function errorText(err) {
+  if (err?.error?.reason) return String(err.error.reason);
+  if (err?.message) return String(err.message);
+  return String(err || "");
+}
+
+function toFriendlyError(err, fallback) {
+  const text = errorText(err);
+  if (text.includes("NotAllowedError") || text.includes("Permission denied")) {
+    return "Camera/microphone access is blocked. Please allow permissions and try again.";
+  }
+  if (text.includes("NotFoundError") || text.includes("Requested device not found")) {
+    return "No camera or microphone was found on this device.";
+  }
+  if (text.includes("WS open timeout") || text.includes("WS not open")) {
+    return "Could not connect to Janus. Check server address and if Janus is running.";
+  }
+  if (text.includes("Invalid room")) {
+    return "Room must be a positive number.";
+  }
+  if (text.includes("No such room") || text.includes("does not exist")) {
+    return "The room is not available right now. Verify the room ID and try again.";
+  }
+  if (text.includes("No such feed") || text.includes("No live publisher") || text.includes("feed")) {
+    return "The live stream is unavailable right now. Please wait for a publisher.";
+  }
+  if (text.includes("A publisher is already live")) {
+    return "Another publisher is already streaming in this room.";
+  }
+  return fallback || "Something went wrong. Please try again.";
+}
+
+function clearReconnectBadgeTimer() {
+  if (reconnectBadgeTimer) {
+    clearTimeout(reconnectBadgeTimer);
+    reconnectBadgeTimer = null;
+  }
+}
+
+function handleUnexpectedDisconnect() {
+  stopKeepalive();
+  stopViewerPoll();
+  stopViewerMonitor();
+  viewerJoinSent = false;
+  currentViewerFeedId = null;
+
+  try { if (pc) pc.close(); } catch {}
+  pc = null;
+  if (localStream) {
+    localStream.getTracks().forEach((t) => t.stop());
+    localStream = null;
+  }
+  document.getElementById("local").srcObject = null;
+  document.getElementById("remote").srcObject = null;
+
+  role = null;
+  sessionId = null;
+  handleId = null;
+  publisherFeedId = null;
+
+  setStatus("reconnecting");
+  showUserMessage("Connection was interrupted. Reconnect and press Start again.");
+  clearReconnectBadgeTimer();
+  reconnectBadgeTimer = setTimeout(() => {
+    if (appStatus === "reconnecting") {
+      setStatus("idle");
+    }
+  }, 1800);
 }
 
 function txid() {
@@ -156,6 +275,8 @@ function setupGlobalMessageHandler() {
 
     if (msg.janus === "error") {
       log("Janus error:", msg.error?.code, msg.error?.reason || msg.error);
+      setStatus("error");
+      showUserMessage(toFriendlyError(msg, "Janus returned an error."));
       return;
     }
 
@@ -168,11 +289,16 @@ function setupGlobalMessageHandler() {
           log("VideoRoom error:", data.error_code, data.error || data);
           if (role === "viewer" && (data.error_code === 428 || data.error_code === 425)) {
             // Feed disappeared/changed or stale subscriber state; recover and retry.
+            setStatus("reconnecting");
+            showUserMessage("Stream ended. Waiting for a new live stream...");
             viewerJoinSent = false;
             currentViewerFeedId = null;
             resetViewerPlaybackState();
             await reattachVideoRoomHandle();
             startViewerAutoJoin();
+          } else {
+            setStatus("error");
+            showUserMessage(toFriendlyError(data.error || data, "Room request failed."));
           }
           return;
         }
@@ -196,6 +322,8 @@ function setupGlobalMessageHandler() {
           }
           if (data?.unpublished || data?.leaving) {
             log("Live stream ended. Waiting for next publisher...");
+            setStatus("viewer_waiting");
+            showUserMessage("Feed ended. Waiting for the publisher to come back.");
             resetViewerPlaybackState();
             await reattachVideoRoomHandle();
             startViewerAutoJoin();
@@ -212,6 +340,8 @@ function setupGlobalMessageHandler() {
 
     if (msg.janus === "hangup" && role === "viewer") {
       log("Viewer hangup:", msg.reason || "stream ended");
+      setStatus("viewer_waiting");
+      showUserMessage("Feed ended. Waiting for a live publisher.");
       resetViewerPlaybackState();
       await reattachVideoRoomHandle();
       startViewerAutoJoin();
@@ -260,6 +390,8 @@ function createPeerConnection() {
     if (remote.srcObject !== e.streams[0]) {
       remote.srcObject = e.streams[0];
       log("Remote stream attached");
+      clearUserMessage();
+      setStatus("connected");
     }
   };
 }
@@ -381,6 +513,8 @@ async function publishLocalStream() {
   });
 
   log("Publishing...");
+  clearUserMessage();
+  setStatus("publishing");
 }
 
 async function handlePublisherAnswer(jsepAnswer) {
@@ -428,6 +562,7 @@ function startViewerAutoJoin() {
   stopViewerPoll();
   startViewerMonitor();
   log("Viewer waiting for live publisher...");
+  setStatus("viewer_waiting");
   const run = async () => {
     try {
       await tryJoinLiveFeed();
@@ -495,39 +630,78 @@ async function handleSubscriberOffer(jsepOffer) {
   });
 
   log("Viewer started");
+  clearUserMessage();
+  setStatus("connected");
 }
 
 async function start(selectedRole) {
-  role = selectedRole;
+  if (startInProgress || role !== null) {
+    return;
+  }
+
+  startInProgress = true;
+  stopRequested = false;
+  clearReconnectBadgeTimer();
+  clearUserMessage();
+  setStatus("connecting", selectedRole === "publisher" ? "Connecting publisher" : "Connecting viewer");
   logEl.textContent = "";
-  log("Starting role:", role);
+  log("Starting role:", selectedRole);
 
-  displayName = document.getElementById("name").value.trim() || "user";
-  room = parseInt(document.getElementById("room").value.trim() || "1234", 10);
-  janusWsUrl = document.getElementById("janusWs").value.trim() || "ws://localhost:8188";
+  try {
+    role = selectedRole;
+    displayName = nameEl.value.trim() || "user";
+    room = parseInt(roomEl.value.trim() || "1234", 10);
+    if (!Number.isFinite(room) || room <= 0) {
+      throw new Error("Invalid room");
+    }
+    janusWsUrl = janusWsEl.value.trim() || "ws://localhost:8188";
 
-  ws = new WebSocket(janusWsUrl, "janus-protocol");
+    ws = new WebSocket(janusWsUrl, "janus-protocol");
 
-  ws.onerror = (e) => log("WS error", e);
-  ws.onclose = () => log("WS closed");
+    ws.onerror = (e) => {
+      log("WS error", e);
+      if (!stopRequested) {
+        showUserMessage("Connection issue detected. Trying to recover...");
+      }
+    };
+    ws.onclose = () => {
+      log("WS closed");
+      if (!stopRequested && role !== null) {
+        handleUnexpectedDisconnect();
+      }
+    };
 
-  await new Promise((resolve, reject) => {
-    ws.onopen = resolve;
-    setTimeout(() => reject(new Error("WS open timeout")), 8000);
-  });
+    await new Promise((resolve, reject) => {
+      ws.onopen = resolve;
+      setTimeout(() => reject(new Error("WS open timeout")), 8000);
+    });
 
-  log("WS connected:", janusWsUrl);
+    log("WS connected:", janusWsUrl);
+    setStatus("connected");
 
-  setupGlobalMessageHandler();
-  await createSession();
-  startKeepalive();
-  await attachVideoRoom();
+    setupGlobalMessageHandler();
+    await createSession();
+    startKeepalive();
+    await attachVideoRoom();
 
-  if (role === "publisher") await joinAsPublisher();
-  if (role === "viewer") await joinAsViewer();
+    if (role === "publisher") await joinAsPublisher();
+    if (role === "viewer") await joinAsViewer();
+  } catch (e) {
+    log("Start failed:", e?.error?.reason || e?.message || e);
+    showUserMessage(toFriendlyError(e, "Could not start streaming. Please try again."));
+    setStatus("error");
+    await stopAll({ preserveMessage: true, preserveStatus: true });
+  } finally {
+    startInProgress = false;
+    updateControls();
+  }
 }
 
-async function stopAll() {
+async function stopAll(options = {}) {
+  const preserveMessage = !!options.preserveMessage;
+  const preserveStatus = !!options.preserveStatus;
+  stopRequested = true;
+  clearReconnectBadgeTimer();
   log("Stopping...");
   const currentRole = role;
   stopKeepalive();
@@ -569,8 +743,17 @@ async function stopAll() {
   handleId = null;
   publisherFeedId = null;
   role = null;
+  if (!preserveMessage) {
+    clearUserMessage();
+  }
+  if (!preserveStatus) {
+    setStatus("idle");
+  } else {
+    updateControls();
+  }
 }
 
-document.getElementById("btnPublisher").onclick = () => start("publisher");
-document.getElementById("btnViewer").onclick = () => start("viewer");
-document.getElementById("btnStop").onclick = () => stopAll();
+btnPublisherEl.onclick = () => start("publisher");
+btnViewerEl.onclick = () => start("viewer");
+btnStopEl.onclick = () => stopAll();
+setStatus("idle");

@@ -95,9 +95,9 @@ public final class OnvoidWebRtcEngine implements WebRtcEngine {
         // Keep a sink attached so frames are consumed and can be observed in logs.
         VideoTrackSink sink = frame -> System.out.printf(
             "Remote video frame: %dx%d ts=%d%n",
-            frame.getBuffer().getWidth(),
-            frame.getBuffer().getHeight(),
-            frame.getTimestampNs());
+            frame.buffer.getWidth(),
+            frame.buffer.getHeight(),
+            frame.timestampNs);
 
         synchronized (OnvoidWebRtcEngine.this) {
           remoteVideoTracks.add(videoTrack);
