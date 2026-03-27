@@ -29,6 +29,9 @@ jobs:
       - name: Check JavaScript syntax
         run: node --check app.js
 
+      - name: Check HTML and JS wiring
+        run: node scripts/check-web-smoke.mjs
+
   java-client-build:
     name: Java client build
     runs-on: ubuntu-latest
@@ -61,6 +64,12 @@ jobs:
 
       - name: Build web image
         run: docker build -f Dockerfile.web -t web-streaming-web .
+
+      - name: Smoke test web image
+        run: |
+          docker run -d --name web-streaming-web-smoke -p 8080:80 web-streaming-web
+          trap "docker rm -f web-streaming-web-smoke" EXIT
+          curl --fail --retry 10 --retry-connrefused --retry-delay 1 http://localhost:8080
 
       - name: Build Java viewer image
         run: docker build -f java-client/Dockerfile -t web-streaming-java-viewer ./java-client
