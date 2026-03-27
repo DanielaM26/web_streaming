@@ -59,3 +59,92 @@ You can run the same Java build locally with:
 cd /home/daniela/web-streaming/java-client
 mvn -DskipTests package
 ```
+
+## Docker
+
+This project can be split into three containers:
+
+- a `janus` container that runs Janus Gateway
+- a `web` container that serves `index.html` and `app.js` with Nginx
+- a `java-viewer` container that runs the Java Janus viewer
+
+Files added for this:
+
+- `Dockerfile.web`
+- `java-client/Dockerfile`
+- `docker-compose.yml`
+
+### Start the Whole Stack
+
+```bash
+cd /home/daniela/web-streaming
+docker compose up --build
+```
+
+This starts:
+
+- Janus on `ws://localhost:8188`
+- the web UI on `http://localhost:8080`
+
+The browser app already defaults to `ws://localhost:8188`, so it can talk to the Janus container without extra changes.
+
+### Start Only the Web UI and Janus
+
+```bash
+cd /home/daniela/web-streaming
+docker compose up --build janus web
+```
+
+Then open:
+
+```text
+http://localhost:8080
+```
+
+### Start the Java Viewer Container
+
+The Java viewer needs a mapped feed id and access to Janus.
+
+```bash
+cd /home/daniela/web-streaming
+JANUS_FEED_ID=123 docker compose --profile viewer up --build java-viewer
+```
+
+By default the Java container connects to the Janus service over the Docker network:
+
+```text
+ws://janus:8188
+```
+
+### Janus Container Details
+
+The Janus service uses `swmansion/janus-gateway:0.11.8-0` and exposes:
+
+- `8188` for WebSocket signaling
+- `10000-10099/udp` for RTP media
+
+Environment variables you can override:
+
+- `JANUS_GATEWAY_IP`
+- `JANUS_STUN_SERVER`
+- `JANUS_STUN_PORT`
+- `JANUS_RTP_PORT_RANGE`
+
+Example:
+
+```bash
+cd /home/daniela/web-streaming
+JANUS_GATEWAY_IP=192.168.1.10 docker compose up --build
+```
+
+Use your real machine IP for `JANUS_GATEWAY_IP` if clients outside the container need stable ICE candidates.
+
+### Why These Containers
+
+This repository is not a microservices backend, but it does have multiple runnable parts:
+
+- Janus Gateway
+- a browser client
+- a Java client
+
+Containerizing them separately keeps each runtime simple and easier to start.

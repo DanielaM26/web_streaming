@@ -1,0 +1,35 @@
+services:
+  janus:
+    image: swmansion/janus-gateway:0.11.8-0
+    environment:
+      WEBSOCKETS_ENABLED: "true"
+      GATEWAY_IP: ${JANUS_GATEWAY_IP:-127.0.0.1}
+      STUN_SERVER: ${JANUS_STUN_SERVER:-stun.l.google.com}
+      STUN_PORT: ${JANUS_STUN_PORT:-19302}
+      RTP_PORT_RANGE: ${JANUS_RTP_PORT_RANGE:-10000-10099}
+    ports:
+      - "8188:8188"
+      - "10000-10099:10000-10099/udp"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    depends_on:
+      - janus
+    ports:
+      - "8080:80"
+
+  java-viewer:
+    build:
+      context: ./java-client
+      dockerfile: Dockerfile
+    depends_on:
+      - janus
+    environment:
+      JANUS_WS: ${JANUS_WS:-ws://janus:8188}
+      JANUS_ROOM: ${JANUS_ROOM:-1234}
+      JANUS_DISPLAY: ${JANUS_DISPLAY:-java-viewer}
+      JANUS_FEED_ID: ${JANUS_FEED_ID:-1}
+    profiles:
+      - viewer

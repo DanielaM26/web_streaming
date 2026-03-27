@@ -1,0 +1,6 @@
+.git
+.github
+java-client/target
+node_modules
+*.log
+presentation.tex
