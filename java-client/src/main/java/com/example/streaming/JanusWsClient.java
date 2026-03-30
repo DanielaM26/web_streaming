@@ -86,10 +86,6 @@ public final class JanusWsClient implements AutoCloseable {
     return mapper.createObjectNode();
   }
 
-  public ObjectMapper mapper() {
-    return mapper;
-  }
-
   @Override
   public void close() {
     open = false;
@@ -132,9 +128,9 @@ public final class JanusWsClient implements AutoCloseable {
             return CompletableFuture.completedFuture(null);
           }
         }
-        asyncEvents.offer(msg);
+        offerAsyncEvent(msg);
       } catch (Exception e) {
-        asyncEvents.offer(mapper.createObjectNode()
+        offerAsyncEvent(mapper.createObjectNode()
             .put("janus", "error")
             .put("error", "JSON parsing failed: " + e.getMessage()));
       }
@@ -161,6 +157,12 @@ public final class JanusWsClient implements AutoCloseable {
     public void onError(WebSocket webSocket, Throwable error) {
       open = false;
       txResponses.values().forEach(f -> f.completeExceptionally(error));
+    }
+  }
+
+  private void offerAsyncEvent(JsonNode event) {
+    if (!asyncEvents.offer(event)) {
+      throw new IllegalStateException("Failed to queue Janus async event");
     }
   }
 }
