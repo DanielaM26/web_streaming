@@ -12,13 +12,81 @@ The repository includes a GitHub Actions workflow at `.github/workflows/ci.yml`.
 It runs automatically on:
 
 - every push to `main`
+- every push to `develop`
 - every pull request
 - manual runs from the GitHub Actions tab
 
-The workflow does two things:
+The workflow currently includes these jobs:
 
-- checks that the web entry files exist and that `app.js` has valid JavaScript syntax
-- builds the Maven project in `java-client/` with Java 17
+- `Web checks`
+- `Java client build`
+- `Java Checkstyle`
+- `Java SpotBugs`
+- `Docker checks`
+
+What CI verifies:
+
+- frontend entry files exist
+- `app.js` has valid JavaScript syntax
+- `index.html` and `app.js` are wired correctly
+- the Java client builds with Java 17
+- Checkstyle rules pass for the Java code
+- SpotBugs finds no medium-or-higher bug patterns in the Java code
+- Docker Compose configuration is valid
+- the web Docker image builds and responds over HTTP
+
+## Local Quality Checks
+
+Frontend:
+
+```bash
+cd /home/daniela/web-streaming
+node --check app.js
+node scripts/check-web-smoke.mjs
+```
+
+Java:
+
+```bash
+cd /home/daniela/web-streaming/java-client
+mvn -DskipTests package
+mvn org.apache.maven.plugins:maven-checkstyle-plugin:3.4.0:check
+mvn com.github.spotbugs:spotbugs-maven-plugin:4.8.6.2:check
+```
+
+Docker:
+
+```bash
+cd /home/daniela/web-streaming
+docker compose config
+docker build -f Dockerfile.web -t web-streaming-web .
+```
+
+## Branch Workflow
+
+Recommended workflow:
+
+- `main` is the stable branch
+- `develop` is the working branch for changes and testing
+- open pull requests from `develop` into `main`
+
+Typical flow:
+
+```bash
+cd /home/daniela/web-streaming
+git checkout develop
+git add .
+git commit -m "Describe your change"
+git push origin develop
+```
+
+Then create a pull request:
+
+```text
+develop -> main
+```
+
+If you enable GitHub branch protection for `main`, you can require the CI jobs to pass before merge.
 
 ## Put This Project On GitHub
 
@@ -49,15 +117,6 @@ cd /home/daniela/web-streaming
 git add .github/workflows/ci.yml README.md
 git commit -m "Add GitHub Actions CI"
 git push -u origin main
-```
-
-## Local CI Command
-
-You can run the same Java build locally with:
-
-```bash
-cd /home/daniela/web-streaming/java-client
-mvn -DskipTests package
 ```
 
 ## Docker
@@ -138,6 +197,28 @@ JANUS_GATEWAY_IP=192.168.1.10 docker compose up --build
 ```
 
 Use your real machine IP for `JANUS_GATEWAY_IP` if clients outside the container need stable ICE candidates.
+
+### Quick Accessibility Test
+
+To verify that the web app is reachable from a container:
+
+```bash
+cd /home/daniela/web-streaming
+docker build -f Dockerfile.web -t web-streaming-web-test .
+docker run --rm -p 8090:80 web-streaming-web-test
+```
+
+Then open:
+
+```text
+http://localhost:8090
+```
+
+You can also test the response from the terminal:
+
+```bash
+curl -I http://localhost:8090
+```
 
 ### Why These Containers
 
