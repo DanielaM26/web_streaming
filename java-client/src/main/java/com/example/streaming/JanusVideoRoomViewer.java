@@ -1,5 +1,6 @@
 package com.example.streaming;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -24,6 +25,9 @@ public final class JanusVideoRoomViewer implements AutoCloseable {
   private Long sessionId;
   private Long handleId;
 
+  @SuppressFBWarnings(
+      value = "EI_EXPOSE_REP2",
+      justification = "The viewer intentionally holds the caller-provided WebRtcEngine for its lifecycle.")
   public JanusVideoRoomViewer(
       URI janusWsUri, long roomId, String displayName, long mappedFeedId, WebRtcEngine webRtc) {
     this.janus = new JanusWsClient(janusWsUri);
@@ -67,8 +71,8 @@ public final class JanusVideoRoomViewer implements AutoCloseable {
         ObjectNode detach = baseJanus("detach");
         janus.sendWithTransaction(detach, TX_TIMEOUT);
       }
-    } catch (Exception ignored) {
-      // Best effort on shutdown.
+    } catch (Exception e) {
+      System.err.println("Detach during shutdown failed: " + e.getMessage());
     }
 
     try {
@@ -76,8 +80,8 @@ public final class JanusVideoRoomViewer implements AutoCloseable {
         ObjectNode destroy = baseJanus("destroy");
         janus.sendWithTransaction(destroy, TX_TIMEOUT);
       }
-    } catch (Exception ignored) {
-      // Best effort on shutdown.
+    } catch (Exception e) {
+      System.err.println("Destroy during shutdown failed: " + e.getMessage());
     }
 
     webRtc.close();
@@ -150,8 +154,8 @@ public final class JanusVideoRoomViewer implements AutoCloseable {
     body.put("display", displayName);
     body.put("feed", feedId);
 
-    ArrayNode streams = janus.mapper().createArrayNode();
-    ObjectNode stream = janus.mapper().createObjectNode();
+    ArrayNode streams = janus.object().arrayNode();
+    ObjectNode stream = janus.object();
     stream.put("feed", feedId);
     streams.add(stream);
     body.set("streams", streams);

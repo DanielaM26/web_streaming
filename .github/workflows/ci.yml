@@ -71,6 +71,25 @@ jobs:
         working-directory: java-client
         run: mvn -B org.apache.maven.plugins:maven-checkstyle-plugin:3.4.0:check
 
+  java-spotbugs:
+    name: Java SpotBugs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+
+      - name: Run SpotBugs
+        working-directory: java-client
+        run: mvn -B com.github.spotbugs:spotbugs-maven-plugin:4.8.6.2:check
+
   docker-checks:
     name: Docker checks
     runs-on: ubuntu-latest
