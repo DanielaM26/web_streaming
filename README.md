@@ -233,3 +233,48 @@ This repository is not a microservices backend, but it does have multiple runnab
 - a Java client
 
 Containerizing them separately keeps each runtime simple and easier to start.
+
+## Optional Local Monitoring
+
+The project includes a minimal local monitoring setup for dissertation/demo use.
+It is optional and does not change the normal application startup.
+
+Components:
+
+- Prometheus for collecting metrics
+- Grafana for visualizing metrics
+
+Start only monitoring:
+
+```bash
+cd /home/daniela/web_streaming
+docker compose --profile monitoring up --build prometheus grafana
+```
+
+Start the application and monitoring together:
+
+```bash
+cd /home/daniela/web_streaming
+docker compose --profile monitoring up --build
+```
+
+Open:
+
+```text
+Web UI:     http://localhost:8080
+Grafana:    http://localhost:13000
+Prometheus: http://localhost:19090
+```
+
+Grafana credentials:
+
+```text
+admin / admin
+```
+
+Grafana is provisioned automatically with a Prometheus datasource and a `Web Streaming Monitoring` dashboard.
+The monitoring ports can be overridden if needed:
+
+```bash
+GRAFANA_PORT=3000 PROMETHEUS_PORT=9090 docker compose --profile monitoring up --build prometheus grafana
+```
