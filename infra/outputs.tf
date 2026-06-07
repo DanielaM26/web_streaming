@@ -18,8 +18,3 @@ output "github_actions_role_arn" {
   value       = aws_iam_role.github_actions_deploy.arn
 }
 
-output "janus_public_ip" {
-  description = "Public IP of the Janus EC2 instance."
-  value       = var.enable_janus_instance ? aws_instance.janus[0].public_ip : null
-}
-

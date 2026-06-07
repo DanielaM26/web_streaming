@@ -49,33 +49,3 @@ variable "cloudfront_price_class" {
   type        = string
   default     = "PriceClass_100"
 }
-
-variable "instance_type" {
-  description = "EC2 instance type for Janus."
-  type        = string
-  default     = "t3.micro"
-}
-
-variable "allowed_ssh_cidrs" {
-  description = "CIDR blocks allowed to SSH into the Janus EC2 instance. Leave empty to disable SSH ingress."
-  type        = list(string)
-  default     = []
-}
-
-variable "janus_rtp_port_from" {
-  description = "First UDP RTP port opened for Janus media."
-  type        = number
-  default     = 10000
-}
-
-variable "janus_rtp_port_to" {
-  description = "Last UDP RTP port opened for Janus media."
-  type        = number
-  default     = 10200
-}
-
-variable "enable_janus_instance" {
-  description = "Whether to create the EC2 Janus instance."
-  type        = bool
-  default     = false
-}

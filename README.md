@@ -22,6 +22,8 @@ The workflow currently includes these jobs:
 - `Java client build`
 - `Java Checkstyle`
 - `Java SpotBugs`
+- `Terraform checks`
+- `Secret scan`
 - `Docker checks`
 
 What CI verifies:
@@ -32,6 +34,8 @@ What CI verifies:
 - the Java client builds with Java 17
 - Checkstyle rules pass for the Java code
 - SpotBugs finds no medium-or-higher bug patterns in the Java code
+- Terraform files are formatted and valid
+- Gitleaks does not detect committed secrets
 - Docker Compose configuration is valid
 - the web Docker image builds and responds over HTTP
 

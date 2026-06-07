@@ -8,10 +8,3 @@ monthly_budget_limit_usd = 5
 github_repository = "your-github-user/web_streaming"
 github_branch     = "main"
 
-# Leave empty to disable SSH ingress and use AWS SSM Session Manager later.
-allowed_ssh_cidrs = []
-
-instance_type = "t3.micro"
-
-# Keep this false until you are ready to spend Free plan credits on EC2.
-enable_janus_instance = false
