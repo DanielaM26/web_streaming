@@ -7,3 +7,10 @@ java-client/target/
 
 # Logs
 *.log
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
