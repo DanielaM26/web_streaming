@@ -22,6 +22,9 @@ let appStatus = "idle";
 let reconnectBadgeTimer = null;
 let stopRequested = false;
 let startInProgress = false;
+const BG_PRESET_STORAGE_KEY = "janus.bgPreset";
+const DEFAULT_BG_PRESET = "default";
+const ALLOWED_BG_PRESETS = new Set(["default", "blur", "aurora", "warm"]);
 
 const logEl = document.getElementById("log");
 const statusBadgeEl = document.getElementById("statusBadge");
@@ -41,7 +44,7 @@ const STATUS_LABELS = {
   reconnecting: "Reconnecting",
   error: "Error",
 };
-
+const bgPresetEl = document.getElementById("bgPreset");
 function log(...args) {
   const line = args.map(a => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");
   console.log(line);
@@ -148,6 +151,39 @@ function handleUnexpectedDisconnect() {
 
 function txid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function normalizeBackgroundPreset(preset) {
+  if (ALLOWED_BG_PRESETS.has(preset)) {
+    return preset;
+  }
+  return DEFAULT_BG_PRESET;
+}
+
+function persistBackgroundPreset(preset) {
+  try {
+    localStorage.setItem(BG_PRESET_STORAGE_KEY, preset);
+  } catch {
+    // Ignore storage errors in private browsing or restricted contexts.
+  }
+}
+
+function applyBackgroundPreset(preset) {
+  const normalized = normalizeBackgroundPreset(preset);
+  document.body.setAttribute("data-bg-preset", normalized);
+  bgPresetEl.value = normalized;
+  persistBackgroundPreset(normalized);
+  log(`Background style: ${normalized}`);
+}
+
+function loadSavedBackgroundPreset() {
+  let saved = DEFAULT_BG_PRESET;
+  try {
+    saved = localStorage.getItem(BG_PRESET_STORAGE_KEY) || DEFAULT_BG_PRESET;
+  } catch {
+    saved = DEFAULT_BG_PRESET;
+  }
+  applyBackgroundPreset(saved);
 }
 
 function sendJanus(msg) {
@@ -757,3 +793,5 @@ btnPublisherEl.onclick = () => start("publisher");
 btnViewerEl.onclick = () => start("viewer");
 btnStopEl.onclick = () => stopAll();
 setStatus("idle");
+bgPresetEl.addEventListener("change", () => applyBackgroundPreset(bgPresetEl.value));
+loadSavedBackgroundPreset();
