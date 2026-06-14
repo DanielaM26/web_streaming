@@ -188,6 +188,7 @@ The Janus service uses `swmansion/janus-gateway:0.11.8-0` and exposes:
 
 Environment variables you can override:
 
+- `JANUS_WS_PORT`
 - `JANUS_GATEWAY_IP`
 - `JANUS_STUN_SERVER`
 - `JANUS_STUN_PORT`
@@ -201,6 +202,19 @@ JANUS_GATEWAY_IP=192.168.1.10 docker compose up --build
 ```
 
 Use your real machine IP for `JANUS_GATEWAY_IP` if clients outside the container need stable ICE candidates.
+
+If port `8188` is already used locally, start Janus on another host port:
+
+```bash
+cd /home/daniela/web_streaming
+JANUS_WS_PORT=18188 docker compose up --build janus web
+```
+
+Then set the app's `Janus WS` field to:
+
+```text
+ws://localhost:18188
+```
 
 ### Quick Accessibility Test
 
@@ -243,12 +257,21 @@ Components:
 
 - Prometheus for collecting metrics
 - Grafana for visualizing metrics
+- Loki for storing logs
+- Promtail for collecting Docker container logs
 
 Start only monitoring:
 
 ```bash
 cd /home/daniela/web_streaming
 docker compose --profile monitoring up --build prometheus grafana
+```
+
+Start monitoring and logging without starting the application:
+
+```bash
+cd /home/daniela/web_streaming
+docker compose --profile monitoring --profile logging up --build prometheus grafana loki promtail
 ```
 
 Start the application and monitoring together:
@@ -258,12 +281,20 @@ cd /home/daniela/web_streaming
 docker compose --profile monitoring up --build
 ```
 
+Start the application, monitoring, and logging together:
+
+```bash
+cd /home/daniela/web_streaming
+docker compose --profile monitoring --profile logging up --build
+```
+
 Open:
 
 ```text
 Web UI:     http://localhost:8080
 Grafana:    http://localhost:13000
 Prometheus: http://localhost:19090
+Loki API:   http://localhost:13100
 ```
 
 Grafana credentials:
@@ -272,9 +303,9 @@ Grafana credentials:
 admin / admin
 ```
 
-Grafana is provisioned automatically with a Prometheus datasource and a `Web Streaming Monitoring` dashboard.
+Grafana is provisioned automatically with Prometheus and Loki datasources and a `Web Streaming Monitoring` dashboard.
 The monitoring ports can be overridden if needed:
 
 ```bash
-GRAFANA_PORT=3000 PROMETHEUS_PORT=9090 docker compose --profile monitoring up --build prometheus grafana
+GRAFANA_PORT=3000 PROMETHEUS_PORT=9090 LOKI_PORT=3100 docker compose --profile monitoring --profile logging up --build prometheus grafana loki promtail
 ```

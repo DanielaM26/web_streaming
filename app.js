@@ -25,6 +25,7 @@ let startInProgress = false;
 const BG_PRESET_STORAGE_KEY = "janus.bgPreset";
 const DEFAULT_BG_PRESET = "default";
 const ALLOWED_BG_PRESETS = new Set(["default", "blur", "aurora", "warm"]);
+const JANUS_VIDEOROOM_ADMIN_KEY = "supersecret";
 
 const logEl = document.getElementById("log");
 const statusBadgeEl = document.getElementById("statusBadge");
@@ -469,6 +470,7 @@ async function ensureRoomExists() {
     transaction: t2,
     body: {
       request: "create",
+      admin_key: JANUS_VIDEOROOM_ADMIN_KEY,
       room,
       publishers: 1,
       record: false,
