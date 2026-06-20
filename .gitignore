@@ -1,6 +1,7 @@
 # Node / local
 .DS_Store
 Thumbs.db
+.env
 
 # Java / Maven
 java-client/target/
