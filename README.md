@@ -8,6 +8,7 @@ This repository contains:
 ## GitHub Actions CI
 
 The repository includes a GitHub Actions workflow at `.github/workflows/ci.yml`.
+This workflow is used to validate changes before they are merged into the stable branch.
 
 It runs automatically on:
 
